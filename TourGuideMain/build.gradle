@@ -1,0 +1,30 @@
+plugins {
+	id 'org.springframework.boot' version '2.7.1'
+	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id 'java'
+	id "io.freefair.lombok" version "6.5.0.3"
+}
+
+group = 'com.TourGuide'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.17'
+
+repositories {
+	mavenCentral()
+	flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    implementation group: 'org.javamoney', name: 'moneta', version: '1.3'
+	implementation group: 'com.jsoniter', name: 'jsoniter', version: '0.9.23'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

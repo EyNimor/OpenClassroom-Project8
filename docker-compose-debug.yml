@@ -1,0 +1,66 @@
+version: "0.0.1"
+services:
+  main:
+    image: tourguide-main
+    environment:
+      - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8090
+    container_name: TG-main
+    build:
+      context: TourGuideMain
+      dockerfile: Dockerfile
+    ports: 
+      - "8080:8080"
+      - "8090:8090"
+    networks:
+      - web-server
+    restart: always
+    depends_on:
+      - TG-reward
+      - TG-gps
+      - TG-pricer
+  gps:
+    image: tourguide-gps
+    environment:
+      - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8091
+    container_name: TG-gps
+    build:
+      context: TourGuideGPS
+      dockerfile: Dockerfile
+    ports: 
+      - "8081:8081"
+      - "8091:8091"
+    networks:
+      - web-server
+    restart: always
+  pricer:
+    image: tourguide-pricer
+    environment:
+      - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8092
+    container_name: TG-pricer
+    build:
+      context: TourGuidePricer
+      dockerfile: Dockerfile
+    ports: 
+      - "8082:8082"
+      - "8092:8092"
+    networks:
+      - web-server
+    restart: always
+  reward:
+    image: tourguide-reward
+    environment:
+      - JAVA_TOOL_OPTIONS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8093
+    container_name: TG-reward
+    build:
+      context: TourGuideReward
+      dockerfile: Dockerfile
+    ports: 
+      - "8083:8083"
+      - "8093:8093"
+    networks:
+      - web-server
+    restart: always
+
+networks:
+  web-server:
+    driver: bridge
