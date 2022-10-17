@@ -3,16 +3,19 @@ package com.TourGuide.TourGuideMain.model;
 import java.util.Date;
 import java.util.UUID;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@ToString @Getter
+@NoArgsConstructor @AllArgsConstructor
 public class VisitedLocation {
-  public final UUID userId;
+
+  public UUID userId;
   
-  public final Location location;
+  public Location location;
   
-  public final Date timeVisited;
-  
-  public VisitedLocation(UUID userId, Location location, Date timeVisited) {
-    this.userId = userId;
-    this.location = location;
-    this.timeVisited = timeVisited;
-  }
+  public Date timeVisited;
+
 }

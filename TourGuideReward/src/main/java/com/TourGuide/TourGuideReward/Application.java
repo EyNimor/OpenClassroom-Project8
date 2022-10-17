@@ -1,4 +1,4 @@
-package com.TourGuide.TourGuidePricer.app;
+package com.TourGuide.TourGuideReward;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

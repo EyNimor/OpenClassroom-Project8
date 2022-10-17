@@ -1,17 +1,16 @@
 package com.TourGuide.TourGuideMain.model;
 
-import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
+@ToString
+@NoArgsConstructor @AllArgsConstructor
 public class Provider {
-  public final String name;
+  public String name;
   
-  public final double price;
+  public double price;
   
-  public final UUID tripId;
-  
-  public Provider(UUID tripId, String name, double price) {
-    this.name = name;
-    this.tripId = tripId;
-    this.price = price;
-  }
+  public String tripId;
 }
+

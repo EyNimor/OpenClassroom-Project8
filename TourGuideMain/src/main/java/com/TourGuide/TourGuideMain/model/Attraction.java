@@ -2,14 +2,20 @@ package com.TourGuide.TourGuideMain.model;
 
 import java.util.UUID;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+@Getter @ToString
+@NoArgsConstructor
 public class Attraction extends Location {
-  public final String attractionName;
+  public String attractionName;
   
-  public final String city;
+  public String city;
   
-  public final String state;
+  public String state;
   
-  public final UUID attractionId;
+  public UUID attractionId;
   
   public Attraction(String attractionName, String city, String state, double latitude, double longitude) {
     super(latitude, longitude);
