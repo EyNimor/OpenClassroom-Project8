@@ -1,7 +1,9 @@
 package com.TourGuide.TourGuideReward.service;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import rewardCentral.RewardCentral;
@@ -15,8 +17,9 @@ public class TourGuideRewardService {
         this.rewardCentral = rewardCentral;
     }
 
-    public Integer getRewardPoints(UUID attractionId, UUID userId) {
-        return rewardCentral.getAttractionRewardPoints(attractionId, userId);
+    @Async("asyncExecutor")
+    public CompletableFuture<Integer> getRewardPoints(UUID attractionId, UUID userId) {
+        return CompletableFuture.completedFuture(rewardCentral.getAttractionRewardPoints(attractionId, userId));
     }
     
 }

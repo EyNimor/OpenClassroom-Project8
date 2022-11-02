@@ -2,7 +2,9 @@ package com.TourGuide.TourGuidePricer.service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import tripPricer.Provider;
@@ -17,9 +19,10 @@ public class TourGuidePricerService {
         this.tripPricer = tripPricer;
     }
 
-    public List<Provider> getPrice(String tripPricerApiKey, UUID userId, int numberOfAdults, int numberOfChildren,
+    @Async("asyncExecutor")
+    public CompletableFuture<List<Provider>> getPrice(String tripPricerApiKey, UUID userId, int numberOfAdults, int numberOfChildren,
                                 int tripDuration, int cumulatativeRewardPoints) {
-        return tripPricer.getPrice(tripPricerApiKey, userId, numberOfAdults, numberOfChildren, tripDuration, cumulatativeRewardPoints);
+        return CompletableFuture.completedFuture(tripPricer.getPrice(tripPricerApiKey, userId, numberOfAdults, numberOfChildren, tripDuration, cumulatativeRewardPoints));
     }
     
 }

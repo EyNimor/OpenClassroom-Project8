@@ -8,7 +8,9 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "RewardClient", url = "http://localhost:8083/reward/")
+import com.TourGuide.TourGuideMain.config.FeignConfiguration;
+
+@FeignClient(name = "RewardClient", url = "http://localhost:8083/reward/", configuration = FeignConfiguration.class)
 public interface RewardClient {
 
     @GetMapping("/getRewardPointsForMultipleAttractions")

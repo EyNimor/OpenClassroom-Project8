@@ -14,14 +14,13 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.TourGuide.TourGuideMain.feignClient.GpsClient;
@@ -42,13 +41,13 @@ public class TourGuideMainService {
 	private static final double STATUTE_MILES_PER_NAUTICAL_MILE = 1.15077945;
 
 	@Autowired
-    GpsClient gps;
+    private GpsClient gps;
 
 	@Autowired
-	RewardClient reward;
+	private RewardClient reward;
 
 	@Autowired
-	PricerClient pricer;
+	private PricerClient pricer;
 
 	//Values in Miles
 	private int defaultProximityBuffer = 10;
@@ -57,7 +56,6 @@ public class TourGuideMainService {
 
     private Logger logger = LoggerFactory.getLogger(TourGuideMainService.class);
     private boolean isTestMode = true;
-	private ExecutorService executorService = Executors.newFixedThreadPool(125);
 
     public TourGuideMainService() {
         if(isTestMode) {
@@ -67,18 +65,6 @@ public class TourGuideMainService {
 			logger.debug("Finished initializing users");
 		}
     }
-
-	//Use this constructor ONLY for Unit and Integrations Tests !
-    public TourGuideMainService(GpsClient gps, RewardClient reward) {
-		this.gps = gps;
-		this.reward = reward;
-		if(isTestMode) {
-			logger.info("TestMode enabled");
-			logger.debug("Initializing users");
-			initializeInternalUsers();
-			logger.debug("Finished initializing users");
-		}
-	}
 
 	public void setProximityBuffer(int proximityBuffer) {
 		this.proximityBuffer = proximityBuffer;
@@ -96,59 +82,57 @@ public class TourGuideMainService {
 		return internalUserMap.values().stream().collect(Collectors.toList());
 	}
 
+	@Async("asyncExecutor")
 	public CompletableFuture<VisitedLocation> trackUserLocation(String userName) {
-        return CompletableFuture.supplyAsync(() -> {
-            logger.info("Getting location of user : " + userName);
-			User user = getUser(userName);
-            VisitedLocation visitedLocation = gps.getUserLocation(user.getUserId().toString());
-            user.addToVisitedLocations(visitedLocation);
-            calculateRewards(user);
-            return visitedLocation;
-        }, executorService);
+        logger.info("Getting location of user : " + userName);
+		User user = getUser(userName);
+        VisitedLocation visitedLocation = gps.getUserLocation(user.getUserId().toString());
+        user.addToVisitedLocations(visitedLocation);
+        calculateRewards(user);
+        return CompletableFuture.completedFuture(visitedLocation);
     }
 
+	@Async("asyncExecutor")
 	public CompletableFuture<NearbyAttractions> getNearbyAttractions(String userName) throws Exception {
-		return CompletableFuture.supplyAsync(() -> {
-			try {
-				logger.info("Getting nearby Attractions of user : " + userName);
-				User user = getUser(userName);
-				CompletableFuture<VisitedLocation> userLocationAsyncCall = trackUserLocation(userName);
-        		List<Attraction> unfilteredAttractionsList = gps.getAllAttraction();; 
+		try {
+			logger.info("Getting nearby Attractions of user : " + userName);
+			User user = getUser(userName);
+			CompletableFuture<VisitedLocation> userLocationAsyncCall = trackUserLocation(userName);
+        	List<Attraction> unfilteredAttractionsList = gps.getAllAttractions();; 
 
-				Location userLocation = userLocationAsyncCall.get().location;
-				Map<Attraction, Double> unsortedDistanceOfEachAttraction = new HashMap<>();
-				for(int i = 0 ; i < unfilteredAttractionsList.size() ; i++) {
-					unsortedDistanceOfEachAttraction.put(unfilteredAttractionsList.get(i), getDistance(new Location(unfilteredAttractionsList.get(i).longitude, unfilteredAttractionsList.get(i).latitude), userLocation));
-				}
-				Map<Attraction, Double> unfilteredDistanceOfEachAttraction = sortByValue(unsortedDistanceOfEachAttraction);
-				Map<Attraction, Double> distanceOfEachAttraction = filter(unfilteredDistanceOfEachAttraction);
-
-				List<Attraction> attractionsList = new ArrayList<>();
-				for(int i = 0 ; i < unfilteredAttractionsList.size() ; i++) {
-					if(distanceOfEachAttraction.containsKey(unfilteredAttractionsList.get(i))) {
-						attractionsList.add(unfilteredAttractionsList.get(i));
-					}
-				}
-				List<UUID> attractionsIds = new ArrayList<>();
-				for(int i = 0 ; i < attractionsList.size() ; i++) {
-					attractionsIds.add(attractionsList.get(i).getAttractionId());
-				}
-
-				CompletableFuture<Map<UUID, Integer>> rewardsAsyncCall = CompletableFuture.supplyAsync(() -> reward.getRewardPointsForMultipleAttractions(attractionsIds, user.getUserId().toString()));
-				Map<UUID, Integer> rewardsPoints = rewardsAsyncCall.get();
-        		Map<Attraction, Integer> rewardPointsForEachAttraction = new HashMap<>();
-				for(int i = 0 ; i < attractionsList.size() ; i++) {
-					rewardPointsForEachAttraction.put(attractionsList.get(i), rewardsPoints.get(attractionsList.get(i).getAttractionId()));
-				}
-
-        		NearbyAttractions nearbyAttractions = new NearbyAttractions(attractionsList, userLocation, distanceOfEachAttraction, rewardPointsForEachAttraction);
-				return nearbyAttractions;
+			Location userLocation = userLocationAsyncCall.get().location;
+			Map<Attraction, Double> unsortedDistanceOfEachAttraction = new HashMap<>();
+			for(int i = 0 ; i < unfilteredAttractionsList.size() ; i++) {
+				unsortedDistanceOfEachAttraction.put(unfilteredAttractionsList.get(i), getDistance(new Location(unfilteredAttractionsList.get(i).longitude, unfilteredAttractionsList.get(i).latitude), userLocation));
 			}
-			catch(Exception e) {
-				e.fillInStackTrace();
-				return null;
+			Map<Attraction, Double> unfilteredDistanceOfEachAttraction = sortByValue(unsortedDistanceOfEachAttraction);
+			Map<Attraction, Double> distanceOfEachAttraction = filter(unfilteredDistanceOfEachAttraction);
+
+			List<Attraction> attractionsList = new ArrayList<>();
+			for(int i = 0 ; i < unfilteredAttractionsList.size() ; i++) {
+				if(distanceOfEachAttraction.containsKey(unfilteredAttractionsList.get(i))) {
+					attractionsList.add(unfilteredAttractionsList.get(i));
+				}
 			}
-		}, executorService);
+			List<UUID> attractionsIds = new ArrayList<>();
+			for(int i = 0 ; i < attractionsList.size() ; i++) {
+				attractionsIds.add(attractionsList.get(i).getAttractionId());
+			}
+
+			CompletableFuture<Map<UUID, Integer>> rewardsAsyncCall = CompletableFuture.supplyAsync(() -> reward.getRewardPointsForMultipleAttractions(attractionsIds, user.getUserId().toString()));
+			Map<UUID, Integer> rewardsPoints = rewardsAsyncCall.get();
+        	Map<Attraction, Integer> rewardPointsForEachAttraction = new HashMap<>();
+			for(int i = 0 ; i < attractionsList.size() ; i++) {
+				rewardPointsForEachAttraction.put(attractionsList.get(i), rewardsPoints.get(attractionsList.get(i).getAttractionId()));
+			}
+
+        	NearbyAttractions nearbyAttractions = new NearbyAttractions(attractionsList, userLocation, distanceOfEachAttraction, rewardPointsForEachAttraction);
+			return CompletableFuture.completedFuture(nearbyAttractions);
+		}
+		catch(Exception e) {
+			e.fillInStackTrace();
+			return null;
+		}
 	}
 
 	private static Map<Attraction, Double> sortByValue(Map<Attraction, Double> unsortMap) {
@@ -198,26 +182,24 @@ public class TourGuideMainService {
 		return user.getUserRewards();
 	}
 
+	@Async("asyncExecutor")
 	public CompletableFuture<Map<String, Location>> getAllUsersCurentLocations() {
-        return CompletableFuture.supplyAsync(() -> {
-			List<User> users = getAllUsers();
-			Map<String, Location> map = new HashMap<>();
-			for(User user : users) {
-				map.put(user.getUserId().toString(), user.getLastVisitedLocation().getLocation());
-			}
-			return map;
-		}, executorService);
+		List<User> users = getAllUsers();
+		Map<String, Location> map = new HashMap<>();
+		for(User user : users) {
+			map.put(user.getUserId().toString(), user.getLastVisitedLocation().getLocation());
+		}
+		return CompletableFuture.completedFuture(map);
     }
 
+	@Async("asyncExecutor")
 	public CompletableFuture<List<Provider>> getTripDeals(String userName) {
-		return CompletableFuture.supplyAsync(() -> {
-			User user = getUser(userName);
-        	int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
-			List<Provider> providers = pricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(), 
-					user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
-			user.setTripDeals(providers);
-			return providers;
-		}, executorService);
+		User user = getUser(userName);
+        int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
+		List<Provider> providers = pricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(), 
+				user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+		user.setTripDeals(providers);
+		return CompletableFuture.completedFuture(providers);
     }
 
 	/**********************************************************************************
@@ -226,24 +208,23 @@ public class TourGuideMainService {
 	 * 
 	 **********************************************************************************/
 
+	@Async("asyncExecutor")
 	public CompletableFuture<User> calculateRewards(User user) {
-		return CompletableFuture.supplyAsync(() -> {
-			logger.info("Calculating Reward for user : " + user.getUserName());
-			List<VisitedLocation> userLocations = user.getVisitedLocations();
-			List<Attraction> attractions = gps.getAllAttraction();
+		logger.info("Calculating Reward for user : " + user.getUserName());
+		List<VisitedLocation> userLocations = user.getVisitedLocations();
+		List<Attraction> attractions = gps.getAllAttractions();
 		
-			for(VisitedLocation visitedLocation : userLocations) {
-				for(Attraction attraction : attractions) {
-					if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
-						if(nearAttraction(visitedLocation, attraction)) {
-							user.addUserReward(new UserReward(visitedLocation, attraction, getRewardPoints(attraction, user)));
-						}
+		for(VisitedLocation visitedLocation : userLocations) {
+			for(Attraction attraction : attractions) {
+				if(user.getUserRewards().stream().filter(r -> r.attraction.attractionName.equals(attraction.attractionName)).count() == 0) {
+					if(nearAttraction(visitedLocation, attraction)) {
+						user.addUserReward(new UserReward(visitedLocation, attraction, reward.getAttractionRewardPoints(attraction.attractionId, user.getUserId())));
 					}
 				}
 			}
+		}
 
-			return user;
-		}, executorService);
+		return CompletableFuture.completedFuture(user);
 	}
 
 	public boolean isWithinAttractionProximity(Attraction attraction, Location location) {
@@ -252,10 +233,6 @@ public class TourGuideMainService {
 	
 	private boolean nearAttraction(VisitedLocation visitedLocation, Attraction attraction) {
 		return getDistance(attraction, visitedLocation.location) > proximityBuffer ? false : true;
-	}
-	
-	private int getRewardPoints(Attraction attraction, User user) {
-		return reward.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
 	}
 
 	public double getDistance(Location loc1, Location loc2) {
@@ -280,9 +257,12 @@ public class TourGuideMainService {
 
 	private static final String tripPricerApiKey = "test-server-api-key";
 
-    private final Map<String, User> internalUserMap = new HashMap<>();
+    private Map<String, User> internalUserMap = new HashMap<>();
     
-	private void initializeInternalUsers() {
+	public void initializeInternalUsers() {
+		if(internalUserMap.size() > 0) {
+			internalUserMap = new HashMap<>();
+		}
 		IntStream.range(0, InternalTestHelper.getInternalUserNumber()).forEach(i -> {
 			String userName = "internalUser" + i;
 			String phone = "000";

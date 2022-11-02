@@ -2,7 +2,9 @@ package com.TourGuide.TourGuideGPS.service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
@@ -17,13 +19,15 @@ public class TourGuideGPSService {
         this.gpsUtil = gpsUtil;
     }
 
-    public VisitedLocation trackUserLocation(UUID userId) {
+    @Async("asyncExecutor")
+    public CompletableFuture<VisitedLocation> trackUserLocation(UUID userId) {
 		VisitedLocation visitedLocation = gpsUtil.getUserLocation(userId);
-		return visitedLocation;
+		return CompletableFuture.completedFuture(visitedLocation);
 	}
 
-    public List<Attraction> getAttraction() {
-        return gpsUtil.getAttractions();
+    @Async("asyncExecutor")
+    public CompletableFuture<List<Attraction>> getAttraction() {
+        return CompletableFuture.completedFuture(gpsUtil.getAttractions());
     }
     
 }
